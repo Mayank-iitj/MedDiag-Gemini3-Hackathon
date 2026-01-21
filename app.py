@@ -30,6 +30,15 @@ from utils.viz_helpers import (
     create_confidence_badge
 )
 
+# Import LLM adapter system
+from utils.llm_helpers import (
+    create_llm_adapter,
+    generate_with_llm,
+    get_available_providers_info,
+    get_provider_models
+)
+from config.llm_config import LLMConfig
+
 # Load environment variables
 load_dotenv()
 
@@ -89,6 +98,40 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Helper function for formatting reasoning steps
+def format_reasoning_steps(differential):
+    """Format differential diagnosis reasoning into structured steps"""
+    steps = []
+    
+    if differential.get('reasoning'):
+        steps.append({
+            'title': '🧠 Clinical Reasoning',
+            'content': differential['reasoning']
+        })
+    
+    if differential.get('evidence_pro'):
+        evidence_list = '\n'.join([f"• {ev}" for ev in differential['evidence_pro']])
+        steps.append({
+            'title': '✅ Supporting Evidence',
+            'content': evidence_list
+        })
+    
+    if differential.get('evidence_con'):
+        evidence_list = '\n'.join([f"• {ev}" for ev in differential['evidence_con']])
+        steps.append({
+            'title': '❌ Contradictory Evidence',
+            'content': evidence_list
+        })
+    
+    if differential.get('next_tests'):
+        tests_list = '\n'.join([f"• {test}" for test in differential['next_tests']])
+        steps.append({
+            'title': '🔬 Recommended Tests',
+            'content': tests_list
+        })
+    
+    return steps
+
 # Initialize session state
 if 'analysis_result' not in st.session_state:
     st.session_state.analysis_result = None
@@ -99,59 +142,93 @@ if 'language' not in st.session_state:
 
 # Sidebar
 with st.sidebar:
-    st.markdown('<div class="hackathon-badge">🏆 Gemini 3 Hackathon Submission<br>Built Exclusively with Gemini 3 API</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hackathon-badge">🏆 Gemini 3 Hackathon Submission<br>Universal LLM Adapter System</div>', unsafe_allow_html=True)
     
-    st.markdown("### ⚙️ Configuration")
+    st.markdown("### ⚙️ LLM Provider Configuration")
     
-    # API Configuration
-    default_api = os.getenv('DEFAULT_API', 'openrouter')
+    # Get available providers
+    available_providers = get_available_providers_info()
     
-    # Check for OpenRouter API key first (but don't show it in UI for security)
-    openrouter_key = os.getenv('OPENROUTER_API_KEY', '')
-    gemini_key = os.getenv('GEMINI_API_KEY', '')
-    
-    # Determine which API to use
-    if openrouter_key and default_api == 'openrouter':
-        # Show placeholder instead of actual key for security
-        api_key = st.text_input(
-            "OpenRouter API Key (Multi-Model Access)",
-            type="password",
-            value="",
-            placeholder="●●●●●●●● (loaded from .env)",
-            help="API key loaded securely from .env file"
-        )
-        # Use the actual key from .env if user didn't enter one
-        if not api_key:
-            api_key = openrouter_key
-        api_type = "openrouter"
-        st.info("🔀 Using OpenRouter API (supports Gemini, GPT-4, Claude, etc.)")
+    if not available_providers:
+        st.error("⚠️ No API keys found!")
+        st.info("""
+        Add one or more API keys to your `.env` file:
+        - `OPENAI_API_KEY`
+        - `ANTHROPIC_API_KEY`
+        - `GEMINI_API_KEY`
+        - `COHERE_API_KEY`
+        - `OPENROUTER_API_KEY`
+        - `GROQ_API_KEY`
+        - `AZURE_OPENAI_KEY` + `AZURE_OPENAI_ENDPOINT`
+        - `HUGGINGFACE_API_KEY`
+        """)
+        st.session_state.llm_adapter = None
+        st.session_state.selected_provider = None
+        st.session_state.selected_model = None
     else:
-        api_key = st.text_input(
-            "Gemini 3 API Key",
-            type="password",
-            value="",
-            placeholder="●●●●●●●● (loaded from .env)" if gemini_key else "Enter your API key",
-            help="Get your free API key from https://aistudio.google.com/app/apikey"
+        # Provider selection
+        provider_options = {
+            f"{info['icon']} {info['display_name']}": provider_id 
+            for provider_id, info in available_providers.items()
+        }
+        
+        default_provider = LLMConfig.get_default_provider()
+        default_index = list(provider_options.values()).index(default_provider) if default_provider in provider_options.values() else 0
+        
+        selected_provider_display = st.selectbox(
+            "Select LLM Provider",
+            options=list(provider_options.keys()),
+            index=default_index,
+            help="Choose which LLM provider to use for medical analysis"
         )
-        # Use the actual key from .env if user didn't enter one
-        if not api_key and gemini_key:
-            api_key = gemini_key
-        api_type = "gemini"
-    
-    if api_key:
-        if api_type == "gemini":
-            genai.configure(api_key=api_key)
-        elif api_type == "openrouter":
-            # Initialize OpenRouter client (OpenAI-compatible)
-            st.session_state.openrouter_client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=api_key
-            )
-        st.session_state.api_type = api_type
-        st.session_state.api_key = api_key
-        st.success(f"✓ API Key configured ({api_type})")
-    else:
-        st.warning("⚠️ API Key required to run analysis")
+        
+        selected_provider = provider_options[selected_provider_display]
+        provider_info = available_providers[selected_provider]
+        
+        # Model selection
+        try:
+            available_models = get_provider_models(selected_provider)
+            
+            if available_models:
+                default_model = provider_info.get('default_model', available_models[0])
+                model_index = available_models.index(default_model) if default_model in available_models else 0
+                
+                selected_model = st.selectbox(
+                    "Select Model",
+                    options=available_models,
+                    index=model_index,
+                    help="Choose which model to use"
+                )
+            else:
+                selected_model = provider_info.get('default_model')
+                st.info(f"Using default model: {selected_model}")
+            
+            # Create adapter
+            st.session_state.llm_adapter = create_llm_adapter(selected_provider)
+            st.session_state.selected_provider = selected_provider
+            st.session_state.selected_model = selected_model
+            
+            # Show model capabilities
+            caps = st.session_state.llm_adapter.get_model_capabilities(selected_model)
+            
+            capability_badges = []
+            if caps.supports_vision:
+                capability_badges.append("🖼️ Vision")
+            if caps.supports_streaming:
+                capability_badges.append("⚡ Streaming")
+            if caps.supports_function_calling:
+                capability_badges.append("🔧 Functions")
+            
+            if capability_badges:
+                st.caption(f"Capabilities: {' • '.join(capability_badges)}")
+            
+            st.success(f"✓ {provider_info['display_name']} configured")
+            
+        except Exception as e:
+            st.error(f"Error configuring provider: {str(e)}")
+            st.session_state.llm_adapter = None
+            st.session_state.selected_provider = None
+            st.session_state.selected_model = None
     
     st.markdown("---")
     
@@ -295,23 +372,21 @@ has_valid_input = (uploaded_files and len(uploaded_files) > 0) or clinical_notes
 if not has_valid_input:
     st.warning("⚠️ Please provide at least one input modality (images, clinical notes, or patient history)")
 
+has_llm_configured = st.session_state.get('llm_adapter') is not None
+
 analyze_button = st.button(
     "🔬 Analyze & Generate Differential Diagnosis",
     type="primary",
-    disabled=not (has_valid_input and api_key),
+    disabled=not (has_valid_input and has_llm_configured),
     width='stretch'
 )
 
 # Analysis execution
 if analyze_button:
-    with st.spinner("🧠 Gemini 3 is analyzing your case... This may take 10-30 seconds"):
+    provider_name = st.session_state.get('selected_provider', 'LLM')
+    with st.spinner(f"🧠 {provider_name.upper()} is analyzing your case... This may take 10-30 seconds"):
         try:
-            start_time = time.time()
-            
-            # Prepare multimodal content
-            content_parts = []
-            
-            # Add images
+            # Prepare images
             images = []
             if uploaded_files:
                 for file in uploaded_files:
@@ -325,7 +400,6 @@ if analyze_button:
                         img = img.convert('RGB')
                     
                     images.append(img)
-                    content_parts.append(img)
             
             # Build prompt
             prompt = build_diagnostic_prompt(
@@ -334,76 +408,32 @@ if analyze_button:
                 language=st.session_state.language
             )
             
-            # Call appropriate API
-            api_type = st.session_state.get('api_type', 'gemini')
-            
-            if api_type == 'openrouter':
-                # Use OpenRouter API (OpenAI-compatible)
-                import base64
-                
-                # Convert images to base64 for OpenRouter
-                image_contents = []
-                for img in images:
-                    buffered = io.BytesIO()
-                    img.save(buffered, format="PNG")
-                    img_base64 = base64.b64encode(buffered.getvalue()).decode()
-                    image_contents.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{img_base64}"
-                        }
-                    })
-                
-                # Create messages for OpenRouter
-                messages = [
-                    {
-                        "role": "user",
-                        "content": [
-                            *image_contents,
-                            {"type": "text", "text": prompt}
-                        ]
-                    }
-                ]
-                
-                # Call OpenRouter with Gemini 2.0 (Gemini 3)
-                client = st.session_state.openrouter_client
-                completion = client.chat.completions.create(
-                    model="google/gemini-2.0-flash-exp:free",  # Gemini 3 - latest model
-                    messages=messages,
-                    temperature=0.1,
-                    max_tokens=8000
-                )
-                
-                response_text = completion.choices[0].message.content
-                
-            else:
-                # Use Google Gemini API directly
-                model = genai.GenerativeModel('gemini-2.0-flash-exp')
-                
-                content_parts = []
-                for img in images:
-                    content_parts.append(img)
-                content_parts.append(prompt)
-                
-                response = model.generate_content(
-                    content_parts,
-                    generation_config=genai.GenerationConfig(
-                        temperature=0.1,
-                        max_output_tokens=4000,
-                    )
-                )
-                response_text = response.text
-            
-            end_time = time.time()
-            latency = end_time - start_time
+            # Use universal LLM adapter
+            response = generate_with_llm(
+                prompt=prompt,
+                images=images if images else None,
+                provider=st.session_state.selected_provider,
+                model=st.session_state.selected_model,
+                temperature=0.1,
+                max_tokens=4000
+            )
             
             # Parse response
-            analysis_result = parse_gemini_response(response_text)
-            analysis_result['latency'] = latency
+            analysis_result = parse_gemini_response(response.text)
+            analysis_result['latency'] = response.latency
             analysis_result['images'] = images
+            analysis_result['provider'] = response.provider
+            analysis_result['model'] = response.model
+            analysis_result['cost'] = response.cost
+            analysis_result['tokens'] = {
+                'input': response.input_tokens,
+                'output': response.output_tokens
+            }
             
             st.session_state.analysis_result = analysis_result
-            st.success(f"✓ Analysis completed in {latency:.2f} seconds")
+            
+            # Show success with provider info
+            st.success(f"✓ Analysis completed in {response.latency:.2f}s | {response.provider} ({response.model}) | Cost: ${response.cost:.4f}")
             
         except Exception as e:
             st.error(f"❌ Error during analysis: {str(e)}")
