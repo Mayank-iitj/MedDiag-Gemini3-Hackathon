@@ -27,7 +27,6 @@ from utils.viz_helpers import (
     create_timeline_chart,
     create_urgency_gauge,
     create_differential_table,
-    format_reasoning_steps,
     create_confidence_badge
 )
 
