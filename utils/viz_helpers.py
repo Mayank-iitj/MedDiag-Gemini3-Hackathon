@@ -64,7 +64,7 @@ def create_timeline_chart(timeline_data: Dict[str, Any]) -> go.Figure:
     
     fig.update_layout(
         title={
-            'text': 'ðŸ“ˆ Disease Progression Timeline',
+            'text': 'Disease Progression Timeline',
             'font': {'size': 20, 'color': '#1A1A1A'}
         },
         xaxis_title='Days from Onset',
@@ -174,13 +174,7 @@ def create_differential_table(differentials: List[Dict[str, Any]]) -> pd.DataFra
     return df
 
 
-def format_reasoning_steps(differential: Dict[str, Any]) -> List[Dict[str, str]]:
-    """
-    Format step-wise reasoning for accordion display
-    
-    Args:
-        differential: Single differential diagnosis dict
-    
+
 def create_reasoning_expander(differential: Dict, idx: int) -> None:
     """Display differential diagnosis reasoning directly (no expander)"""
     diagnosis = differential.get("diagnosis", "Unknown")
@@ -210,27 +204,26 @@ def create_reasoning_expander(differential: Dict, idx: int) -> None:
     # Supporting evidence
     evidence_pro = differential.get("evidence_pro", [])
     if evidence_pro:
-        st.markdown("<p style="color: #9c27b0; margin: 10px 0 5px 0; font-size: 14px;"><strong>&#9989; Supporting Evidence</strong></p>", unsafe_allow_html=True)
+        st.markdown("<p style=\"color: #9c27b0; margin: 10px 0 5px 0; font-size: 14px;\"><strong>&#9989; Supporting Evidence</strong></p>", unsafe_allow_html=True)
         for evidence in evidence_pro:
-            st.markdown(f"<p style="color: #9c27b0; margin: 2px 0; padding-left: 10px;">&#8226; {evidence}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style=\"color: #9c27b0; margin: 2px 0; padding-left: 10px;\">&#8226; {evidence}</p>", unsafe_allow_html=True)
     
     # Contradictory evidence
     evidence_con = differential.get("evidence_con", [])
     if evidence_con:
-        st.markdown("<p style="color: #9c27b0; margin: 10px 0 5px 0; font-size: 14px;"><strong>&#10060; Contradictory Evidence</strong></p>", unsafe_allow_html=True)
+        st.markdown("<p style=\"color: #9c27b0; margin: 10px 0 5px 0; font-size: 14px;\"><strong>&#10060; Contradictory Evidence</strong></p>", unsafe_allow_html=True)
         for evidence in evidence_con:
-            st.markdown(f"<p style="color: #9c27b0; margin: 2px 0; padding-left: 10px;">&#8226; {evidence}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style=\"color: #9c27b0; margin: 2px 0; padding-left: 10px;\">&#8226; {evidence}</p>", unsafe_allow_html=True)
     
     # Recommended tests
     next_tests = differential.get("next_tests", [])
     if next_tests:
-        st.markdown("<p style="color: #9c27b0; margin: 10px 0 5px 0; font-size: 14px;"><strong>&#129514; Recommended Next Tests</strong></p>", unsafe_allow_html=True)
+        st.markdown("<p style=\"color: #9c27b0; margin: 10px 0 5px 0; font-size: 14px;\"><strong>&#129514; Recommended Next Tests</strong></p>", unsafe_allow_html=True)
         for test in next_tests:
-            st.markdown(f"<p style="color: #9c27b0; margin: 2px 0; padding-left: 10px;">&#8226; {test}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style=\"color: #9c27b0; margin: 2px 0; padding-left: 10px;\">&#8226; {test}</p>", unsafe_allow_html=True)
     
     # Close the card div
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 
 def create_confidence_badge(confidence: str) -> str:
@@ -244,19 +237,18 @@ def create_confidence_badge(confidence: str) -> str:
         HTML string for badge
     """
     
-    if 'high' in confidence.lower():
-        color = '#28A745'
-        icon = 'âœ“'
-    elif 'moderate' in confidence.lower():
-        color = '#FFC107'
-        icon = '~'
+    if "high" in confidence.lower():
+        color = "#28A745"
+        icon = "✓"
+    elif "moderate" in confidence.lower():
+        color = "#FFC107"
+        icon = "~"
     else:
-        color = '#DC3545'
-        icon = '!'
+        color = "#DC3545"
+        icon = "!"
     
     return f"""
     <div style="display: inline-block; background-color: {color}; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; margin: 10px 0;">
         {icon} Confidence: {confidence}
     </div>
     """
-
