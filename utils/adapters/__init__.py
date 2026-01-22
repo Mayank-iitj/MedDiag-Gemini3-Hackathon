@@ -12,6 +12,7 @@ from .openrouter_adapter import OpenRouterAdapter
 from .azure_adapter import AzureOpenAIAdapter
 from .huggingface_adapter import HuggingFaceAdapter
 from .groq_adapter import GroqAdapter
+from .custom_adapter import CustomLLMAdapter
 
 __all__ = [
     'OpenAIAdapter',
@@ -21,5 +22,6 @@ __all__ = [
     'OpenRouterAdapter',
     'AzureOpenAIAdapter',
     'HuggingFaceAdapter',
-    'GroqAdapter'
+    'GroqAdapter',
+    'CustomLLMAdapter'
 ]

@@ -21,29 +21,60 @@ def create_llm_adapter(provider: str = None, api_key: str = None, **kwargs):
     
     Args:
         provider: Provider name (openai, anthropic, gemini, etc.)
-        api_key: API key (if not provided, will try to get from environment)
+        api_key: API key (if not provided, will try to get from API key manager)
         **kwargs: Additional provider-specific arguments
     
     Returns:
         LLM adapter instance
     """
+    from utils.api_key_manager import APIKeyManager, KeySource
+    from utils.adapters.custom_adapter import CustomLLMAdapter
+    
     # Get provider from environment if not specified
     if not provider:
         provider = LLMConfig.get_default_provider()
     
     provider = provider.lower()
     
-    # Get API key from environment if not provided
-    if not api_key:
-        config = LLMConfig.get_provider_config(provider)
-        api_key = config.get('api_key')
+    # Check if it's a custom provider
+    if provider.startswith('custom_'):
+        custom_config = APIKeyManager.get_custom_provider_config(provider)
+        if not custom_config:
+            raise ValueError(f"Custom provider not found: {provider}")
         
+        # Get API key
         if not api_key:
+            key_data, source = APIKeyManager.get_api_key(provider)
+            if not key_data:
+                raise ValueError(f"No API key found for custom provider: {provider}")
+            api_key = key_data
+        
+        # Create custom adapter
+        return CustomLLMAdapter(
+            api_key=api_key,
+            base_url=custom_config.get('base_url'),
+            provider_name=custom_config.get('name', 'Custom'),
+            default_model=custom_config.get('default_model', 'gpt-4o'),
+            custom_headers=custom_config.get('custom_headers', {})
+        )
+    
+    # Get API key using APIKeyManager if not provided
+    if not api_key:
+        key_data, source = APIKeyManager.get_api_key(provider)
+        
+        if not key_data:
             raise ValueError(f"No API key found for provider: {provider}")
         
-        # Add endpoint for Azure
-        if provider == 'azure' and 'endpoint' not in kwargs:
-            kwargs['endpoint'] = config.get('endpoint')
+        # Handle Azure (returns dict with key and endpoint)
+        if provider == 'azure':
+            if isinstance(key_data, dict):
+                api_key = key_data['key']
+                if 'endpoint' not in kwargs:
+                    kwargs['endpoint'] = key_data['endpoint']
+            else:
+                raise ValueError("Azure requires both API key and endpoint")
+        else:
+            api_key = key_data
     
     # Map provider string to ProviderType enum
     provider_map = {
@@ -111,8 +142,28 @@ def generate_with_llm(
 
 
 def get_available_providers_info():
-    """Get information about available providers"""
-    return LLMConfig.get_available_providers()
+    """Get information about available providers (built-in + custom)"""
+    from utils.api_key_manager import APIKeyManager
+    
+    # Get built-in providers
+    providers = LLMConfig.get_available_providers()
+    
+    # Add custom providers
+    custom_providers = APIKeyManager.get_custom_providers()
+    for provider_id, config in custom_providers.items():
+        # Check if has API key
+        api_key, source = APIKeyManager.get_api_key(provider_id)
+        if api_key:
+            providers[provider_id] = {
+                'display_name': config.get('name', 'Custom Provider'),
+                'icon': '🔧',
+                'default_model': config.get('default_model', 'gpt-4o'),
+                'has_api_key': True,
+                'has_endpoint': True,
+                'is_custom': True
+            }
+    
+    return providers
 
 
 def get_provider_models(provider: str) -> List[str]:

@@ -38,6 +38,7 @@ from utils.llm_helpers import (
     get_provider_models
 )
 from config.llm_config import LLMConfig
+from utils.api_key_manager import APIKeyManager, KeySource
 
 # Load environment variables
 load_dotenv()
@@ -144,7 +145,179 @@ if 'language' not in st.session_state:
 with st.sidebar:
     st.markdown('<div class="hackathon-badge">🏆 Gemini 3 Hackathon Submission<br>Universal LLM Adapter System</div>', unsafe_allow_html=True)
     
-    st.markdown("### ⚙️ LLM Provider Configuration")
+    # Initialize API key manager
+    APIKeyManager.initialize_session_state()
+    
+    # API Key Configuration Section
+    st.markdown("### 🔑 API Key Configuration")
+    st.caption("Enter API keys here or use .env file")
+    
+    # Get configured providers
+    configured_providers = APIKeyManager.get_all_configured_providers()
+    # Create tabs for popular providers
+    tab_providers = ['gemini', 'groq', 'openai', 'anthropic']
+    tabs = st.tabs([APIKeyManager.get_provider_info(p)['icon'] + " " + APIKeyManager.get_provider_info(p)['name'] for p in tab_providers])
+    
+    for idx, provider in enumerate(tab_providers):
+        with tabs[idx]:
+            provider_info = APIKeyManager.get_provider_info(provider)
+            
+            # Show current status
+            if provider in configured_providers:
+                masked_key, source = configured_providers[provider]
+                st.success(f"✓ Configured ({source.value})")
+                st.caption(f"Key: {masked_key}")
+            else:
+                st.warning("⚠️ Not configured")
+            
+            # API key input
+            if provider == 'azure':
+                col1, col2 = st.columns(2)
+                with col1:
+                    azure_key = st.text_input(
+                        "Azure API Key",
+                        type="password",
+                        placeholder=provider_info['placeholder'],
+                        key=f"input_{provider}_key"
+                    )
+                with col2:
+                    azure_endpoint = st.text_input(
+                        "Azure Endpoint",
+                        placeholder="https://your-resource.openai.azure.com/",
+                        key=f"input_{provider}_endpoint"
+                    )
+                
+                if st.button(f"Save {provider_info['name']} Config", key=f"save_{provider}"):
+                    if azure_key and azure_endpoint:
+                        APIKeyManager.set_api_key(provider, azure_key, azure_endpoint)
+                        st.success("✓ Saved to session!")
+                        st.rerun()
+                    else:
+                        st.error("Both key and endpoint required")
+            else:
+                api_key_input = st.text_input(
+                    f"{provider_info['name']} API Key",
+                    type="password",
+                    placeholder=provider_info['placeholder'],
+                    key=f"input_{provider}",
+                    help=f"Get your API key from: {provider_info['help_url']}"
+                )
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(f"Save", key=f"save_{provider}"):
+                        is_valid, error_msg = APIKeyManager.validate_key_format(provider, api_key_input)
+                        if is_valid:
+                            APIKeyManager.set_api_key(provider, api_key_input)
+                            st.success("✓ Saved to session!")
+                            st.rerun()
+                        else:
+                            st.error(error_msg)
+                
+                with col2:
+                    if provider in configured_providers:
+                        if st.button("Clear", key=f"clear_{provider}"):
+                            APIKeyManager.clear_api_key(provider)
+                            st.success("✓ Cleared!")
+                            st.rerun()
+            
+            # Help link
+            if provider_info['help_url']:
+                st.markdown(f"[Get API Key →]({provider_info['help_url']})")
+    
+    # Export functionality
+    st.markdown("---")
+    st.markdown("**💾 Export Configuration**")
+    
+    if configured_providers:
+        env_content = APIKeyManager.export_to_env_format()
+        st.download_button(
+            label="⬇️ Download .env file",
+            data=env_content,
+            file_name=".env",
+            mime="text/plain",
+            help="Download configured keys as .env file"
+        )
+    else:
+        st.caption("No keys configured to export")
+    
+    st.markdown("---")
+    
+    # Custom Provider Configuration
+    st.markdown("### 🔧 Custom Provider")
+    st.caption("Add any OpenAI-compatible API endpoint")
+    
+    with st.expander("➕ Add Custom Provider", expanded=False):
+        st.markdown("Configure custom LLM providers (e.g., Ollama, LM Studio, Together AI, Replicate)")
+        
+        custom_name = st.text_input(
+            "Provider Name",
+            placeholder="My Local LLM",
+            help="Display name for this provider",
+            key="custom_provider_name"
+        )
+        
+        custom_base_url = st.text_input(
+            "Base URL",
+            placeholder="http://localhost:1234/v1",
+            help="OpenAI-compatible API endpoint",
+            key="custom_provider_url"
+        )
+        
+        custom_api_key = st.text_input(
+            "API Key",
+            type="password",
+            placeholder="your-api-key (use 'not-needed' for local)",
+            help="API key for authentication",
+            key="custom_provider_key"
+        )
+        
+        custom_model = st.text_input(
+            "Default Model",
+            placeholder="gpt-4o",
+            help="Default model name to use",
+            key="custom_provider_model",
+            value="gpt-4o"
+        )
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Add Provider", type="primary", use_container_width=True):
+                if custom_name and custom_base_url and custom_api_key:
+                    try:
+                        provider_id = APIKeyManager.add_custom_provider(
+                            name=custom_name,
+                            base_url=custom_base_url.rstrip('/'),
+                            api_key=custom_api_key,
+                            default_model=custom_model or 'gpt-4o'
+                        )
+                        st.success(f"✓ Added {custom_name}!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                else:
+                    st.error("All fields are required")
+        
+        with col2:
+            st.markdown("")  # Spacing
+    
+    # Show existing custom providers
+    custom_providers = APIKeyManager.get_custom_providers()
+    if custom_providers:
+        st.markdown("**📋 Your Custom Providers:**")
+        for provider_id, config in custom_providers.items():
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"🔧 **{config['name']}**")
+                st.caption(f"URL: {config['base_url']} | Model: {config['default_model']}")
+            with col2:
+                if st.button("🗑️", key=f"delete_{provider_id}", help="Delete this provider"):
+                    APIKeyManager.remove_custom_provider(provider_id)
+                    st.success(f"Deleted {config['name']}")
+                    st.rerun()
+    
+    st.markdown("---")
+    st.markdown("### ⚙️ LLM Provider Selection")
     
     # Get available providers
     available_providers = get_available_providers_info()
@@ -152,15 +325,11 @@ with st.sidebar:
     if not available_providers:
         st.error("⚠️ No API keys found!")
         st.info("""
-        Add one or more API keys to your `.env` file:
+        Enter API keys above or add to `.env` file:
+        - `GEMINI_API_KEY` (recommended)
+        - `GROQ_API_KEY` (ultra-fast)
         - `OPENAI_API_KEY`
         - `ANTHROPIC_API_KEY`
-        - `GEMINI_API_KEY`
-        - `COHERE_API_KEY`
-        - `OPENROUTER_API_KEY`
-        - `GROQ_API_KEY`
-        - `AZURE_OPENAI_KEY` + `AZURE_OPENAI_ENDPOINT`
-        - `HUGGINGFACE_API_KEY`
         """)
         st.session_state.llm_adapter = None
         st.session_state.selected_provider = None
@@ -184,6 +353,16 @@ with st.sidebar:
         
         selected_provider = provider_options[selected_provider_display]
         provider_info = available_providers[selected_provider]
+        
+        # Show key source
+        _, key_source = APIKeyManager.get_api_key(selected_provider)
+        if key_source != KeySource.NOT_SET:
+            source_icons = {
+                KeySource.SESSION: "💾",
+                KeySource.SECRETS: "🔒",
+                KeySource.ENV: "📁"
+            }
+            st.caption(f"{source_icons.get(key_source, '🔑')} Key from: {key_source.value}")
         
         # Model selection
         try:

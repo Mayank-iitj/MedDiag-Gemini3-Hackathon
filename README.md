@@ -4,7 +4,7 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.38.0-FF4B4B?style=for-the-badge&logo=streamlit)](https://streamlit.io)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python)](https://python.org)
 
-**MedDiag Gemini 3** is a production-ready, AI-assisted clinical decision support tool that leverages Gemini 3's superior multimodal vision understanding and structured medical reasoning capabilities. Built exclusively with the Gemini 3 API, this application demonstrates the power of advanced AI in healthcare workflows.
+**MedDiag Gemini 3** is a production-ready, AI-assisted clinical decision support tool with **universal LLM provider support**. Use Gemini 3, Groq, OpenAI, Anthropic, or **any custom OpenAI-compatible API** (local LLMs, alternative providers) for multimodal medical analysis.
 
 ## 🌟 What It Does
 
@@ -29,11 +29,13 @@ This application showcases Gemini 3's unique strengths:
 
 ## 💡 Innovation Highlights
 
-1. **Multimodal Fusion**: Combines visual radiological findings with clinical history for comprehensive analysis
-2. **Explainable AI**: Transparent step-wise reasoning shows evidence for and against each diagnosis
-3. **Timeline Visualization**: Interactive Plotly charts reveal disease progression probabilities over time
-4. **Agentic Chat**: Dynamic follow-up questions allow clinicians to explore alternative scenarios
-5. **Zero-Authentication Demo**: Public-ready deployment for instant accessibility
+1. **Universal LLM Support**: Works with 8+ built-in providers (Gemini, Groq, OpenAI, Anthropic, etc.) + any custom OpenAI-compatible endpoint
+2. **Multimodal Fusion**: Combines visual radiological findings with clinical history for comprehensive analysis
+3. **Explainable AI**: Transparent step-wise reasoning shows evidence for and against each diagnosis
+4. **Timeline Visualization**: Interactive Plotly charts reveal disease progression probabilities over time
+5. **Agentic Chat**: Dynamic follow-up questions allow clinicians to explore alternative scenarios
+6. **Local LLM Support**: Run with Ollama, LM Studio, or other local models for privacy
+7. **Zero-Authentication Demo**: Public-ready deployment for instant accessibility
 
 ## 🌍 Real-World Impact
 
@@ -72,6 +74,17 @@ cp .env.example .env
 ```bash
 streamlit run app.py
 ```
+
+### 5. Configure Providers (Optional)
+
+The app includes 8+ built-in providers. To add custom providers:
+
+- **Via UI**: Sidebar → "🔧 Custom  Provider" → Add your endpoint
+- **Via Config**: See `CUSTOM_PROVIDER_GUIDE.md` for detailed setup
+
+Supported providers:
+- ✅ **Built-in**: Gemini, Groq, OpenAI, Anthropic, Cohere, OpenRouter, Azure, HuggingFace
+- ✅ **Custom**: Ollama, LM Studio, Together AI, Fireworks AI, Replicate, any OpenAI-compatible API
 
 ## 🎬 Demo & Video
 
