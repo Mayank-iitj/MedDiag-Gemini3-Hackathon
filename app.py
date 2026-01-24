@@ -41,7 +41,7 @@ from config.llm_config import LLMConfig
 from utils.api_key_manager import APIKeyManager, KeySource
 
 # Load environment variables
-load_dotenv()
+# load_dotenv()  # Disabled for security/deployment readiness compliance
 
 # Page configuration
 st.set_page_config(
@@ -155,7 +155,7 @@ with st.sidebar:
     # Get configured providers
     configured_providers = APIKeyManager.get_all_configured_providers()
     # Create tabs for popular providers
-    tab_providers = ['gemini', 'groq', 'openai', 'anthropic']
+    tab_providers = ['gemini', 'groq', 'openai', 'anthropic', 'openrouter']
     tabs = st.tabs([APIKeyManager.get_provider_info(p)['icon'] + " " + APIKeyManager.get_provider_info(p)['name'] for p in tab_providers])
     
     for idx, provider in enumerate(tab_providers):
@@ -325,11 +325,13 @@ with st.sidebar:
     if not available_providers:
         st.error("⚠️ No API keys found!")
         st.info("""
-        Enter API keys above or add to `.env` file:
-        - `GEMINI_API_KEY` (recommended)
-        - `GROQ_API_KEY` (ultra-fast)
-        - `OPENAI_API_KEY`
-        - `ANTHROPIC_API_KEY`
+        Enter API keys above to start analyzing cases.
+        Keys are stored in your session only and are not saved to the server.
+        
+        Recommended Providers:
+        - `Google Gemini` (Multimedia support)
+        - `Groq` (Ultra-fast inference)
+        - `OpenRouter` (Access to all models)
         """)
         st.session_state.llm_adapter = None
         st.session_state.selected_provider = None

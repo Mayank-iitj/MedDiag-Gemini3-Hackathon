@@ -122,49 +122,18 @@ class APIKeyManager:
         # Priority 1: Session state (UI input)
         if provider in st.session_state.api_keys and st.session_state.api_keys[provider]:
             return st.session_state.api_keys[provider], KeySource.SESSION
-        
-        # Priority 2: Streamlit secrets
-        try:
-            if hasattr(st, 'secrets') and key_name in st.secrets:
-                return st.secrets[key_name], KeySource.SECRETS
-        except Exception:
-            pass
-        
-        # Priority 3: Environment variables
-        env_key = os.getenv(key_name)
-        if env_key:
-            return env_key, KeySource.ENV
-        
+            
         return None, KeySource.NOT_SET
     
     @staticmethod
     def _get_azure_credentials() -> Tuple[Optional[Dict[str, str]], KeySource]:
         """Get Azure OpenAI credentials (key + endpoint)"""
-        key_source = KeySource.NOT_SET
-        
         # Check session state
         if 'azure' in st.session_state.api_keys and st.session_state.api_keys['azure']:
             key = st.session_state.api_keys['azure']
             endpoint = st.session_state.get('azure_endpoint', '')
             if key and endpoint:
                 return {'key': key, 'endpoint': endpoint}, KeySource.SESSION
-        
-        # Check secrets
-        try:
-            if hasattr(st, 'secrets'):
-                if 'AZURE_OPENAI_KEY' in st.secrets and 'AZURE_OPENAI_ENDPOINT' in st.secrets:
-                    return {
-                        'key': st.secrets['AZURE_OPENAI_KEY'],
-                        'endpoint': st.secrets['AZURE_OPENAI_ENDPOINT']
-                    }, KeySource.SECRETS
-        except Exception:
-            pass
-        
-        # Check environment
-        key = os.getenv('AZURE_OPENAI_KEY')
-        endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
-        if key and endpoint:
-            return {'key': key, 'endpoint': endpoint}, KeySource.ENV
         
         return None, KeySource.NOT_SET
     

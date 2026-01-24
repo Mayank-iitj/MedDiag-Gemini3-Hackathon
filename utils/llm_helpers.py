@@ -145,16 +145,35 @@ def get_available_providers_info():
     """Get information about available providers (built-in + custom)"""
     from utils.api_key_manager import APIKeyManager
     
-    # Get built-in providers
-    providers = LLMConfig.get_available_providers()
+    # Get all supported providers definitions
+    supported_providers = LLMConfig.get_supported_providers()
+    available_providers = {}
     
+    # Check which ones have keys in session
+    for provider_id, config in supported_providers.items():
+        api_key, source = APIKeyManager.get_api_key(provider_id)
+        
+        # For Azure, api_key is a dict if set
+        has_key = False
+        if provider_id == 'azure':
+            if isinstance(api_key, dict) and api_key.get('key') and api_key.get('endpoint'):
+                has_key = True
+        elif api_key:
+            has_key = True
+            
+        if has_key:
+            provider_info = config.copy()
+            provider_info['has_api_key'] = True
+            provider_info['has_endpoint'] = True # Assumed true if key is valid/present
+            available_providers[provider_id] = provider_info
+            
     # Add custom providers
     custom_providers = APIKeyManager.get_custom_providers()
     for provider_id, config in custom_providers.items():
         # Check if has API key
         api_key, source = APIKeyManager.get_api_key(provider_id)
         if api_key:
-            providers[provider_id] = {
+            available_providers[provider_id] = {
                 'display_name': config.get('name', 'Custom Provider'),
                 'icon': '🔧',
                 'default_model': config.get('default_model', 'gpt-4o'),
@@ -163,7 +182,7 @@ def get_available_providers_info():
                 'is_custom': True
             }
     
-    return providers
+    return available_providers
 
 
 def get_provider_models(provider: str) -> List[str]:

@@ -75,28 +75,17 @@ class LLMConfig:
     }
     
     @classmethod
+    def get_supported_providers(cls) -> Dict[str, Dict[str, Any]]:
+        """Get list of all supported providers definitions"""
+        return cls.PROVIDERS.copy()
+
+    @classmethod
     def get_available_providers(cls) -> Dict[str, Dict[str, Any]]:
-        """Get list of providers with available API keys"""
-        available = {}
-        
-        for provider_id, config in cls.PROVIDERS.items():
-            api_key = os.getenv(config['api_key_env'])
-            
-            if api_key:
-                provider_info = config.copy()
-                provider_info['has_api_key'] = True
-                
-                # Check for endpoint if required
-                if config.get('requires_endpoint'):
-                    endpoint = os.getenv(config.get('endpoint_env', ''))
-                    provider_info['has_endpoint'] = bool(endpoint)
-                    provider_info['endpoint'] = endpoint
-                else:
-                    provider_info['has_endpoint'] = True
-                
-                available[provider_id] = provider_info
-        
-        return available
+        """
+        Legacy method: Get list of providers with available API keys in ENV.
+        Now always returns empty as we mandate session keys.
+        """
+        return {}
     
     @classmethod
     def get_provider_config(cls, provider_id: str) -> Dict[str, Any]:
@@ -104,13 +93,8 @@ class LLMConfig:
         if provider_id not in cls.PROVIDERS:
             raise ValueError(f"Unknown provider: {provider_id}")
         
-        config = cls.PROVIDERS[provider_id].copy()
-        config['api_key'] = os.getenv(config['api_key_env'], '')
-        
-        if config.get('requires_endpoint'):
-            config['endpoint'] = os.getenv(config.get('endpoint_env', ''), '')
-        
-        return config
+        # Return config without any keys loaded
+        return cls.PROVIDERS[provider_id].copy()
     
     @classmethod
     def get_default_provider(cls) -> str:

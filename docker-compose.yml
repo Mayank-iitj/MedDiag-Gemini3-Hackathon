@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  meddiag:
+    build: .
+    container_name: meddiag-gemini3
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    # No environment variables or volumes for secrets mapping as per "win-able" request 
+    # to rely strictly on session-entered keys.
