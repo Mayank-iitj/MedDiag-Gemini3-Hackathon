@@ -144,8 +144,8 @@ python training/scripts/evaluate_model.py \
 | **Current baseline (prompt engineering)** | 70-75% | ✅ Working |
 | **+ Few-shot examples** | 75-80% | ✅ Implemented |
 | **+ Fine-tuning (10K images)** | 80-85% | 🔄 Available |
-| **+ Fine-tuning (100K images)** | 85-90% | 🔄 Available |
-| **+ Fine-tuning (377K full dataset)** | 90-95% | 🔄 Available |
+| **+ Fine-tuning (100K images)** | 83-88% | 🔄 Available |
+| **+ Fine-tuning (377K full dataset)** | 85-92% | 🔄 Available |
 
 ---
 

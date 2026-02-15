@@ -181,7 +181,7 @@ train_model() {
     print_info "Learning rate: $LEARNING_RATE"
     print_info "Batch size: $BATCH_SIZE"
     
-    print_warning "This will take 4-48 hours and cost \$30-\$4,000 depending on dataset size"
+    print_warning "This will take 4-48 hours and cost \$30-\$100 (10K subset) or \$1,000-\$4,000 (full 377K) depending on dataset size"
     
     echo ""
     read -p "Start training? (y/n) " -n 1 -r
